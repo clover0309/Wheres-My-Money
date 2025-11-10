@@ -4,6 +4,10 @@
 
 작업 예상 기간 : 약 한달 예상.
 
+개발 환경 및 사용언어 : Windows 11, MySQL, JAVA, JPA, SpringBoot, VSCODE, Notion, NextJS, 만일 추가가 필요할 시 Python
+
+서버 구동 환경 : Ubuntu 22.04 LTS 개인 서버 
+
 기능 :
 개인정보 보호를 위한 로그인 기능
 사용자 페이지에서, 사용자가 보유한 주식 및 현물자산을 직접 추가, 제거가 가능
