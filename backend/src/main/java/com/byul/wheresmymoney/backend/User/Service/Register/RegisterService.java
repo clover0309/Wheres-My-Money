@@ -1,11 +1,13 @@
 package com.byul.wheresmymoney.backend.User.Service.Register;
 
+import org.springframework.stereotype.Service;
+
 import com.byul.wheresmymoney.backend.User.Entity.UserEntity;
 import com.byul.wheresmymoney.backend.User.Entity.UserRole;
 import com.byul.wheresmymoney.backend.User.Entity.UserStatus;
 import com.byul.wheresmymoney.backend.User.Repository.Register.RegisterRepository;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
@@ -27,4 +29,5 @@ public class RegisterService {
 
         return reg;
     }
+
 }
