@@ -11,3 +11,8 @@
 
 ### 3. 응답 언어
 모든 설명이나 주석은 **한국어**로 진행하여 주세요.
+
+### 4. MySQL 쿼리 작성 지침
+현재 테이블의 구성은 useractivity, userinfo, usermaterials, userstock입니다.
+컬럼명은 userInfo_id, userInfo_pw, userInfo_name, userInfo_email
+이런식으로 앞글자는 소문자 단어의 시작은 대문자를 사용해야하며 _로 구분하고, 이후에는 소문자로 작성해야합니다.

@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../api/authAPI';
 
 function RegisterPage() {
+    const navigate = useNavigate();
     const [id, setId] = useState('');
     const [password, setPassword] = useState('');
     const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -11,6 +14,7 @@ function RegisterPage() {
     const [isIdChecked, setIsIdChecked] = useState(false);
     const [isIdAvailable, setIsIdAvailable] = useState(false);
     const [passwordMatch, setPasswordMatch] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // 아이디 중복 확인
     const checkIdDuplicate = async () => {
@@ -20,14 +24,13 @@ function RegisterPage() {
         }
 
         try {
-            // TODO: API 엔드포인트를 실제 백엔드 URL로 변경
             const response = await fetch(`http://localhost:8080/api/auth/check-id?id=${id}`);
             const data = await response.json();
             
             setIsIdChecked(true);
-            setIsIdAvailable(data.available);
+            setIsIdAvailable(data.success); // data.available -> data.success로 변경
             
-            if (data.available) {
+            if (data.success) {
                 alert('사용 가능한 아이디입니다.');
             } else {
                 alert('이미 사용 중인 아이디입니다.');
@@ -58,7 +61,7 @@ function RegisterPage() {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!isIdChecked || !isIdAvailable) {
@@ -76,13 +79,40 @@ function RegisterPage() {
             return;
         }
 
-        // 회원가입 API 호출 로직 추가 필요
-        console.log('회원가입 데이터 전송:', {
-            id,
-            password,
-            name,
-            email: emailId + emailDomain
-        });
+        if (!name) {
+            alert('이름을 입력해주세요.');
+            return;
+        }
+
+        if (!emailId) {
+            alert('이메일을 입력해주세요.');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const userData = {
+                id: id,
+                password: password,
+                name: name,
+                email: emailId + emailDomain
+            };
+
+            const response = await authAPI.register(userData);
+
+            if (response.success) {
+                alert('회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.');
+                navigate('/');
+            } else {
+                alert(response.message || '회원가입에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('회원가입 오류:', error);
+            alert(error.message || '회원가입 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -149,7 +179,9 @@ function RegisterPage() {
                 <input type="hidden" value="user" />
                 <input type="hidden" value="ACTIVE" />
                 
-                <button type="submit">회원가입</button>
+                <button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? '처리중...' : '회원가입'}
+                </button>
                 </form>
         </div>
     );

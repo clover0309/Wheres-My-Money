@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Service
-public class LoginService {
+public class LogoutService {
     private final LoginRepository loginRepository;
     private final PasswordEncoder passwordEncoder;
 

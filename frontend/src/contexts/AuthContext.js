@@ -1,21 +1,36 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
 
-  const login = () => {
+  // 새로고침 시 로컬스토리지에서 로그인 상태 복원
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(savedUser);
+      setIsLoggedIn(true);
+    }
+  }, []);
+
+  const login = (userData) => {
     setIsLoggedIn(true);
+    setUser(userData);
+    // 로컬스토리지에 사용자 정보 저장
+    localStorage.setItem('user', userData);
   };
 
   const logout = () => {
-    // 토큰 제거 로직 필요.
     setIsLoggedIn(false);
+    setUser(null);
+    // 로컬스토리지에서 사용자 정보 제거
+    localStorage.removeItem('user');
   };
 
     return (
-      <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+      <AuthContext.Provider value={{ isLoggedIn, user, login, logout }}>
         {children}
       </AuthContext.Provider>
     );

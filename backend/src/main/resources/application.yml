@@ -17,6 +17,9 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: update
+      naming:
+      # 원하는 네이밍으로 컬럼명을 지정가능하게 위한 피지컬 전략 설정.
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     properties:
       hibernate:
         format_sql: true

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authAPI } from "../api/authAPI";
 import { useAuth } from "../contexts/AuthContext";
 
 function LoginPage() {
@@ -8,6 +9,7 @@ function LoginPage() {
 
     const [id, setId] = useState('');
     const [password, setPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     console.log("로그인 페이지 렌더링. 현재 status 상태 : ", isLoggedIn);
 
@@ -20,17 +22,36 @@ function LoginPage() {
             }
         }, [isLoggedIn, navigate]);
   
-    const handleLogin = (e) => {
-        console.log("로그인 시도중...");
-        //폼 제출시 새로고침 방지.
-        e.preventDefault(); 
+    const handleLogin = async (e) => {
+        e.preventDefault();
 
         if(id === '' || password === ''){
             alert("아이디나 비밀번호를 모두 입력해주세요.");
             return;
         }
-        
-        login();
+
+        setIsSubmitting(true);
+
+        try {
+            const credentials = {
+                id: id,
+                password: password
+            };
+
+            const response = await authAPI.login(credentials);
+
+            if (response.success) {
+                alert('로그인 성공!');
+                login(response.data); // 사용자 정보 전달
+            } else {
+                alert(response.message || '로그인에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('로그인 오류:', error);
+            alert(error.message || '로그인 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -41,9 +62,11 @@ function LoginPage() {
                 <br />
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호" />
                 <br />
-                <button type="submit">로그인</button>
+                <button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? '로그인 중...' : '로그인'}
+                </button>
                 </form>
-                <button type="" onClick={() => navigate("/RegisterPage")}>회원가입</button>
+                <button type="button" onClick={() => navigate("/RegisterPage")}>회원가입</button>
         </div>
     );
 }
