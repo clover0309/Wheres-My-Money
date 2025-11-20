@@ -6,6 +6,8 @@
 
 개발 환경 및 사용언어 : Windows 11, MySQL, JAVA, JPA, SpringBoot, VSCODE, Notion, NextJS, 만일 추가가 필요할 시 Python
 
+AI툴 : Github Copliot, Gemini
+
 서버 구동 환경 : Ubuntu 22.04 LTS 개인 서버 
 
 기능 :
