@@ -11,12 +11,9 @@ function LoginPage() {
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    console.log("로그인 페이지 렌더링. 현재 status 상태 : ", isLoggedIn);
-
     useEffect(
         () => {
-            if (isLoggedIn) {
-                console.log("useEffect 내부: 로그인 상태 감지됨. true 반환중. UserStockPage로 가자.");
+            if (isLoggedIn)  {
                 // 내부 replace는 다시 로그인 페이지에 오지않게 방지함.
                 navigate("/UserStockPage", {replace: true} );
             }
