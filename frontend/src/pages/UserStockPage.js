@@ -173,10 +173,10 @@ function UserStockPage() {
                                         {stock.userstockQuantity.toLocaleString()}주
                                     </td>
                                     <td style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'right' }}>
-                                        {Number(stock.userstockAvgprice).toLocaleString()}원
+                                        {Math.floor(Number(stock.userstockAvgprice)).toLocaleString()}원
                                     </td>
                                     <td style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'right' }}>
-                                        {(Number(stock.userstockAvgprice) * stock.userstockQuantity).toLocaleString()}원
+                                        {Math.floor(Number(stock.userstockAvgprice) * stock.userstockQuantity).toLocaleString()}원
                                     </td>
                                     <td style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'center' }}>
                                         <button

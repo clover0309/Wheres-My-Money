@@ -1,5 +1,7 @@
 package com.byul.wheresmymoney.backend.Stock.Dto;
 
+import java.time.LocalDate;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,5 +30,6 @@ public class StockDTO {
 		private String stockName;
 		private Integer quantity;
 		private Double averagePrice;
+		private LocalDate purchaseDate;  // 매수 날짜 추가
 	}
 }

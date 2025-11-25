@@ -9,7 +9,10 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 	const [selectedStock, setSelectedStock] = useState(null);
 	const [quantity, setQuantity] = useState('');
 	const [averagePrice, setAveragePrice] = useState('');
+	const [purchaseDate, setPurchaseDate] = useState('');
+	const [useAutoPrice, setUseAutoPrice] = useState(false);
 	const [isSearching, setIsSearching] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const handleSearch = async () => {
 		if (keyword.trim().length < 1) {
@@ -36,6 +39,8 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 	};
 
 	const handleSubmit = async () => {
+		console.log('handleSubmit 호출됨');
+		
 		if (!selectedStock) {
 			alert('종목을 선택해주세요.');
 			return;
@@ -46,23 +51,48 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 			return;
 		}
 
-		if (!averagePrice || parseFloat(averagePrice) <= 0) {
-			alert('평균 매수가를 입력해주세요.');
-			return;
+		// 자동 가격 조회를 사용할 경우 날짜 필수
+		if (useAutoPrice) {
+			if (!purchaseDate) {
+				alert('매수 날짜를 입력해주세요.');
+				return;
+			}
+		} else {
+			// 수동 입력 시 평균 매수가 필수
+			if (!averagePrice || parseFloat(averagePrice) <= 0) {
+				alert('평균 매수가를 입력해주세요.');
+				return;
+			}
 		}
 
+		setIsSubmitting(true);
+		
 		try {
-			const response = await axios.post('http://localhost:8080/api/stock/add', {
+			const requestData = {
 				userId: user,
 				stockCode: selectedStock.code,
 				stockName: selectedStock.name,
-				quantity: parseInt(quantity),
-				averagePrice: parseFloat(averagePrice)
-			}, {
+				quantity: parseInt(quantity)
+			};
+
+			// 자동 가격 조회 사용 시 날짜 전송, 아니면 수동 입력 가격 전송
+			if (useAutoPrice) {
+				requestData.purchaseDate = purchaseDate;
+				requestData.averagePrice = null;
+			} else {
+				requestData.averagePrice = parseFloat(averagePrice);
+				requestData.purchaseDate = null;
+			}
+
+			console.log('요청 데이터:', requestData);
+
+			const response = await axios.post('http://localhost:8080/api/stock/add', requestData, {
 				headers: {
 					'Content-Type': 'application/json'
 				}
 			});
+
+			console.log('서버 응답:', response.data);
 
 			if (response.data.success) {
 				alert('주식이 추가되었습니다.');
@@ -70,11 +100,28 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 				onSuccess();
 				onClose();
 			} else {
-				alert(response.data.message || '주식 추가에 실패했습니다.');
+				const errorMsg = response.data.message || '주식 추가에 실패했습니다.';
+				if (useAutoPrice) {
+					alert(errorMsg + '\n\n자동 가격 조회에 실패했습니다.\n체크박스를 해제하고 평균 매수가를 직접 입력해주세요.');
+				} else {
+					alert(errorMsg);
+				}
 			}
 		} catch (error) {
 			console.error('주식 추가 오류:', error);
-			alert('주식 추가에 실패했습니다.');
+			console.error('에러 응답:', error.response?.data);
+			
+			let errorMessage = '주식 추가에 실패했습니다.';
+			if (useAutoPrice) {
+				errorMessage += '\n\n자동 가격 조회가 실패했습니다.\nAPI 연결 문제가 있을 수 있습니다.\n\n체크박스를 해제하고 평균 매수가를 직접 입력해주세요.';
+			}
+			if (error.response?.data?.message) {
+				errorMessage += '\n\n상세: ' + error.response.data.message;
+			}
+			
+			alert(errorMessage);
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -84,6 +131,8 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 		setSelectedStock(null);
 		setQuantity('');
 		setAveragePrice('');
+		setPurchaseDate('');
+		setUseAutoPrice(false);
 	};
 
 	const handleClose = () => {
@@ -207,18 +256,59 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 
 				{/* 평균 매수가 입력 */}
 				<div style={{ marginBottom: '20px' }}>
-					<label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-						평균 매수가 (원)
-					</label>
-					<input
-						type="number"
-						value={averagePrice}
-						onChange={(e) => setAveragePrice(e.target.value)}
-						placeholder="평균 매수가 입력"
-						min="0"
-						step="0.01"
-						style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-					/>
+					<div style={{ marginBottom: '10px' }}>
+						<label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+							<input
+								type="checkbox"
+								checked={useAutoPrice}
+								onChange={(e) => {
+									setUseAutoPrice(e.target.checked);
+									if (e.target.checked) {
+										setAveragePrice('');
+									} else {
+										setPurchaseDate('');
+									}
+								}}
+								style={{ marginRight: '8px' }}
+							/>
+							<span style={{ fontWeight: 'bold' }}>매수 날짜로 자동 가격 조회</span>
+						</label>
+					</div>
+
+					{useAutoPrice ? (
+						<div>
+							<label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+								매수 날짜
+							</label>
+							<input
+								type="date"
+								value={purchaseDate}
+								onChange={(e) => setPurchaseDate(e.target.value)}
+								style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+							/>
+							<small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
+								* 선택한 날짜의 종가를 자동으로 조회합니다.
+							</small>
+							<small style={{ color: '#ff6b6b', display: 'block', marginTop: '3px', fontSize: '11px' }}>
+								⚠️ API 연결 문제로 실패할 수 있습니다. 실패 시 수동 입력을 사용하세요.
+							</small>
+						</div>
+					) : (
+						<div>
+							<label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+								평균 매수가 (원)
+							</label>
+							<input
+								type="number"
+								value={averagePrice}
+								onChange={(e) => setAveragePrice(e.target.value)}
+								placeholder="평균 매수가 입력"
+								min="0"
+								step="0.01"
+								style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+							/>
+						</div>
+					)}
 				</div>
 
 				{/* 버튼 */}
@@ -238,16 +328,18 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 					</button>
 					<button
 						onClick={handleSubmit}
+						disabled={isSubmitting}
 						style={{
 							padding: '10px 20px',
-							backgroundColor: '#28a745',
+							backgroundColor: isSubmitting ? '#6c757d' : '#28a745',
 							color: 'white',
 							border: 'none',
 							borderRadius: '4px',
-							cursor: 'pointer'
+							cursor: isSubmitting ? 'not-allowed' : 'pointer',
+							opacity: isSubmitting ? 0.7 : 1
 						}}
 					>
-						추가
+						{isSubmitting ? '추가 중...' : '추가'}
 					</button>
 				</div>
 			</div>

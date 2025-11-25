@@ -27,10 +27,12 @@ import com.byul.wheresmymoney.backend.User.Dto.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/stock")
 @RequiredArgsConstructor
+@Slf4j
 public class StockApiController {
 
     @Value("${kiwoom.appkey}")
@@ -110,6 +112,10 @@ public class StockApiController {
     
     @PostMapping("/add")
     public ResponseEntity<ApiResponse> addStock(@RequestBody AddStockRequest request) {
+        log.info("주식 추가 요청 수신: userId={}, stockCode={}, stockName={}, quantity={}, averagePrice={}, purchaseDate={}", 
+            request.getUserId(), request.getStockCode(), request.getStockName(), 
+            request.getQuantity(), request.getAveragePrice(), request.getPurchaseDate());
+        
         if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
             return ResponseEntity.ok(new ApiResponse(false, "로그인이 필요합니다."));
         }
