@@ -10,7 +10,7 @@ import java.util.Scanner;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -132,5 +132,20 @@ public class StockApiController {
         
         List<UserStockDTO> stocks = userStockService.getUserStocks(userId);
         return ResponseEntity.ok(stocks);
+    }
+    
+    @DeleteMapping("/delete")
+    public ResponseEntity<ApiResponse> deleteStock(@RequestParam Integer stockIdx, @RequestParam String userId) {
+        if (stockIdx == null || userId == null || userId.trim().isEmpty()) {
+            return ResponseEntity.ok(new ApiResponse(false, "잘못된 요청입니다."));
+        }
+        
+        boolean success = userStockService.deleteStock(stockIdx, userId);
+        
+        if (success) {
+            return ResponseEntity.ok(new ApiResponse(true, "주식이 삭제되었습니다."));
+        } else {
+            return ResponseEntity.ok(new ApiResponse(false, "주식 삭제에 실패했습니다."));
+        }
     }
 }

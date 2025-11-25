@@ -91,6 +91,28 @@ function UserStockPage() {
         loadStocks();
     };
 
+    const handleDeleteStock = async (stockIdx, stockName) => {
+        if (!window.confirm(`'${stockName}' 종목을 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            const response = await axios.delete(
+                `http://localhost:8080/api/stock/delete?stockIdx=${stockIdx}&userId=${user}`
+            );
+
+            if (response.data.success) {
+                alert('주식이 삭제되었습니다.');
+                loadStocks();
+            } else {
+                alert(response.data.message || '주식 삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('주식 삭제 오류:', error);
+            alert('주식 삭제 중 오류가 발생했습니다.');
+        }
+    };
+
     return (
         <div>
             <h1>로그인 성공</h1>
@@ -139,6 +161,7 @@ function UserStockPage() {
                                 <th style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'right' }}>보유수량</th>
                                 <th style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'right' }}>평균매수가</th>
                                 <th style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'right' }}>평가금액</th>
+                                <th style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'center' }}>관리</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -154,6 +177,24 @@ function UserStockPage() {
                                     </td>
                                     <td style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'right' }}>
                                         {(Number(stock.userstockAvgprice) * stock.userstockQuantity).toLocaleString()}원
+                                    </td>
+                                    <td style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'center' }}>
+                                        <button
+                                            onClick={() => handleDeleteStock(stock.userstockIdx, stock.userstockName)}
+                                            style={{
+                                                padding: '6px 12px',
+                                                backgroundColor: '#dc3545',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '14px'
+                                            }}
+                                            onMouseOver={(e) => e.target.style.backgroundColor = '#c82333'}
+                                            onMouseOut={(e) => e.target.style.backgroundColor = '#dc3545'}
+                                        >
+                                            삭제
+                                        </button>
                                     </td>
                                 </tr>
                             ))}

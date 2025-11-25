@@ -66,4 +66,25 @@ public class UserStockService {
 			))
 			.collect(Collectors.toList());
 	}
+	
+	public boolean deleteStock(Integer stockIdx, String userId) {
+		try {
+			// 주식이 존재하고 해당 사용자의 것인지 확인
+			UserStockEntity stock = userStockRepository.findById(stockIdx).orElse(null);
+			
+			if (stock == null) {
+				return false;
+			}
+			
+			// 사용자 확인
+			if (!stock.getUserstockFidx().equals(userId)) {
+				return false;
+			}
+			
+			userStockRepository.deleteById(stockIdx);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
 }
