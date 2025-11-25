@@ -2,3 +2,7 @@
 .idea/**
 .vscode/**
 .github/**
+
+# Node.js 관련 파일 제거.
+.node_modules/**
+.DS_Store
