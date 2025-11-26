@@ -4,5 +4,5 @@
 .github/**
 
 # Node.js 관련 파일 제거.
-.node_modules/**
+node_modules/
 .DS_Store

@@ -30,7 +30,7 @@ public class UserStockEntity {
 	@Column(name = "userstock_fidx", length = 50, nullable = false)
 	private String userstockFidx;
 	
-	@Column(name = "userstock_stk", length = 12, nullable = false)
+	@Column(name = "userstock_stk", length = 6, nullable = false)
 	private String userstockStk;
 	
 	@Column(name = "userstock_name", length = 100, nullable = false)

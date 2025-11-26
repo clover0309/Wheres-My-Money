@@ -116,17 +116,48 @@ public class StockApiController {
             request.getUserId(), request.getStockCode(), request.getStockName(), 
             request.getQuantity(), request.getAveragePrice(), request.getPurchaseDate());
         
-        if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
-            return ResponseEntity.ok(new ApiResponse(false, "로그인이 필요합니다."));
-        }
-        
-        String userId = request.getUserId();
-        boolean success = userStockService.addStock(userId, request);
-        
-        if (success) {
-            return ResponseEntity.ok(new ApiResponse(true, "주식이 추가되었습니다."));
-        } else {
-            return ResponseEntity.ok(new ApiResponse(false, "주식 추가에 실패했습니다."));
+        try {
+            if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
+                log.warn("로그인 정보가 없습니다.");
+                return ResponseEntity.ok(new ApiResponse(false, "로그인이 필요합니다."));
+            }
+            
+            if (request.getStockCode() == null || request.getStockCode().trim().isEmpty()) {
+                log.warn("종목 코드가 없습니다.");
+                return ResponseEntity.ok(new ApiResponse(false, "종목을 선택해주세요."));
+            }
+            
+            if (request.getQuantity() == null || request.getQuantity() <= 0) {
+                log.warn("수량이 유효하지 않습니다: {}", request.getQuantity());
+                return ResponseEntity.ok(new ApiResponse(false, "유효한 수량을 입력해주세요."));
+            }
+            
+            // 평균 매수가와 매수 날짜 둘 다 없는 경우
+            if ((request.getAveragePrice() == null || request.getAveragePrice() <= 0) 
+                && request.getPurchaseDate() == null) {
+                log.warn("평균 매수가와 매수 날짜가 모두 없습니다.");
+                return ResponseEntity.ok(new ApiResponse(false, "평균 매수가 또는 매수 날짜를 입력해주세요."));
+            }
+            
+            String userId = request.getUserId();
+            boolean success = userStockService.addStock(userId, request);
+            
+            if (success) {
+                log.info("주식 추가 성공: userId={}, stockCode={}", userId, request.getStockCode());
+                return ResponseEntity.ok(new ApiResponse(true, "주식이 추가되었습니다."));
+            } else {
+                log.error("주식 추가 실패: userId={}, stockCode={}", userId, request.getStockCode());
+                
+                // 매수 날짜로 조회했는지 확인
+                if (request.getPurchaseDate() != null) {
+                    return ResponseEntity.ok(new ApiResponse(false, "해당 날짜의 주가 정보를 가져올 수 없습니다. 평균 매수가를 직접 입력해주세요."));
+                } else {
+                    return ResponseEntity.ok(new ApiResponse(false, "주식 추가에 실패했습니다."));
+                }
+            }
+        } catch (Exception e) {
+            log.error("주식 추가 중 예외 발생: userId={}, error={}", request.getUserId(), e.getMessage(), e);
+            return ResponseEntity.ok(new ApiResponse(false, "서버 오류가 발생했습니다: " + e.getMessage()));
         }
     }
     

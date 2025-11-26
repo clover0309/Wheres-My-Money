@@ -90,8 +90,8 @@ for (let i = 1; i < lines.length; i++) {
     const columns = parseCSVLine(line);
     
     if (columns.length >= 9) {
-        const code = columns[0];
-        const name = columns[2].replace(/'/g, "''"); // SQL 이스케이프
+        const code = columns[1]; // ✅ 단축코드 사용 (6자리) - columns[0]은 표준코드(12자리)
+        const name = columns[2].replace(/'/g, "''"); // SQL 이스케이프 - 원본 종목명 유지
         const market = columns[6].replace(/'/g, "''");
         let sector = columns[8].replace(/'/g, "''");
         

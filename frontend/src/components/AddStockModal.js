@@ -77,7 +77,8 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 
 			// 자동 가격 조회 사용 시 날짜 전송, 아니면 수동 입력 가격 전송
 			if (useAutoPrice) {
-				requestData.purchaseDate = purchaseDate;
+				// 날짜를 YYYY-MM-DD 형식으로 변환하여 전송
+				requestData.purchaseDate = purchaseDate; // input[type="date"]는 이미 YYYY-MM-DD 형식
 				requestData.averagePrice = null;
 			} else {
 				requestData.averagePrice = parseFloat(averagePrice);
@@ -93,6 +94,7 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 			});
 
 			console.log('서버 응답:', response.data);
+			console.log('응답 상태 코드:', response.status);
 
 			if (response.data.success) {
 				alert('주식이 추가되었습니다.');
@@ -101,6 +103,8 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 				onClose();
 			} else {
 				const errorMsg = response.data.message || '주식 추가에 실패했습니다.';
+				console.error('주식 추가 실패:', errorMsg);
+				
 				if (useAutoPrice) {
 					alert(errorMsg + '\n\n자동 가격 조회에 실패했습니다.\n체크박스를 해제하고 평균 매수가를 직접 입력해주세요.');
 				} else {
@@ -109,14 +113,24 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 			}
 		} catch (error) {
 			console.error('주식 추가 오류:', error);
-			console.error('에러 응답:', error.response?.data);
+			console.error('에러 응답:', error.response);
+			console.error('에러 데이터:', error.response?.data);
+			console.error('에러 상태:', error.response?.status);
 			
 			let errorMessage = '주식 추가에 실패했습니다.';
+			
+			if (error.response?.data?.message) {
+				errorMessage = error.response.data.message;
+			} else if (error.response?.status === 400) {
+				errorMessage = '잘못된 요청입니다. 입력 값을 확인해주세요.';
+			} else if (error.response?.status === 500) {
+				errorMessage = '서버 오류가 발생했습니다.';
+			} else if (error.message === 'Network Error') {
+				errorMessage = '서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.';
+			}
+			
 			if (useAutoPrice) {
 				errorMessage += '\n\n자동 가격 조회가 실패했습니다.\nAPI 연결 문제가 있을 수 있습니다.\n\n체크박스를 해제하고 평균 매수가를 직접 입력해주세요.';
-			}
-			if (error.response?.data?.message) {
-				errorMessage += '\n\n상세: ' + error.response.data.message;
 			}
 			
 			alert(errorMessage);
@@ -218,7 +232,21 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 								onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f0f0'}
 								onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
 							>
-								<div style={{ fontWeight: 'bold' }}>{stock.name}</div>
+								<div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+									{stock.name}
+									{(stock.name.includes('우선주') || stock.name.includes('우')) && (
+										<span style={{
+											fontSize: '11px',
+											padding: '2px 6px',
+											backgroundColor: '#ff6b6b',
+											color: 'white',
+											borderRadius: '3px',
+											fontWeight: 'normal'
+										}}>
+											우선주
+										</span>
+									)}
+								</div>
 								<div style={{ fontSize: '12px', color: '#666' }}>
 									{stock.code} | {stock.market} | {stock.sector}
 								</div>
