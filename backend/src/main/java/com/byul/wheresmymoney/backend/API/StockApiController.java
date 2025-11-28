@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.byul.wheresmymoney.backend.Stock.Dto.StockDTO.AddStockRequest;
 import com.byul.wheresmymoney.backend.Stock.Dto.StockDTO.StockSearchResponse;
+import com.byul.wheresmymoney.backend.Stock.Dto.StockDetailDTO;
 import com.byul.wheresmymoney.backend.Stock.Dto.UserStockDTO;
 import com.byul.wheresmymoney.backend.Stock.Service.StockSearchService;
 import com.byul.wheresmymoney.backend.Stock.Service.UserStockService;
@@ -184,5 +185,28 @@ public class StockApiController {
         } else {
             return ResponseEntity.ok(new ApiResponse(false, "주식 삭제에 실패했습니다."));
         }
+    }
+    
+    @GetMapping("/detail")
+    public ResponseEntity<ApiResponse> getStockDetail(@RequestParam String userId, @RequestParam String stockCode) {
+    	log.info("주식 상세 정보 요청: userId={}, stockCode={}", userId, stockCode);
+    	
+    	if (userId == null || userId.trim().isEmpty() || stockCode == null || stockCode.trim().isEmpty()) {
+    		return ResponseEntity.ok(new ApiResponse(false, "잘못된 요청입니다."));
+    	}
+    	
+    	try {
+    		// 날짜별로 구분된 매수내역 리스트 조회
+    		List<StockDetailDTO> detailList = userStockService.getStockDetailList(userId, stockCode);
+    		
+    		if (detailList == null || detailList.isEmpty()) {
+    			return ResponseEntity.ok(new ApiResponse(false, "주식 상세 정보를 찾을 수 없습니다."));
+    		}
+    		
+    		return ResponseEntity.ok(new ApiResponse(true, "조회 성공", detailList));
+    	} catch (Exception e) {
+    		log.error("주식 상세 정보 조회 실패: userId={}, stockCode={}", userId, stockCode, e);
+    		return ResponseEntity.ok(new ApiResponse(false, "상세 정보 조회 중 오류가 발생했습니다."));
+    	}
     }
 }

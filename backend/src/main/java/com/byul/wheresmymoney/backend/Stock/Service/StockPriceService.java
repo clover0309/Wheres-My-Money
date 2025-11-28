@@ -245,20 +245,32 @@ public class StockPriceService {
 	 */
 	public BigDecimal getCurrentStockPrice(String stockCode) {
 		try {
+			log.info("===== 현재가 조회 시작 =====");
+			log.info("요청 종목코드: {}", stockCode);
+			
 			// 표준코드를 단축코드로 변환
 			String shortCode = extractShortCode(stockCode);
+			log.info("단축코드 변환: {} -> {}", stockCode, shortCode);
 			
-			String token = getAccessToken();
+		String token = getAccessToken();
+		log.info("토큰 발급 완료");
+		
+		// 키움 API: 국내주식 종목정보 조회 (ka10100) - 현재가 조회
+		// 실전투자 URL
+		String host = "https://api.kiwoom.com";
+		// 모의투자 URL: https://mockapi.kiwoom.com
+		String endpoint = "/api/dostk/stkinfo";
+		
+		// 종목코드는 KRX: 접두사 없이 6자리만 전송
+		String jsonBody = String.format(
+			"{\"stk_cd\":\"%s\"}",
+			shortCode
+		);			System.out.println("===== 현재가 조회 디버깅 =====");
+			System.out.println("API URL: " + host + endpoint);
+			System.out.println("요청 Body: " + jsonBody);
+			System.out.println("종목코드: " + shortCode);
 			
-			// 키움 API: 주식호가요청 (ka10004) - 현재가 포함
-			// 실전투자 URL
-			String host = "https://api.kiwoom.com";
-			String endpoint = "/tr/market/quot";
-			
-			String jsonBody = String.format(
-				"{\"stk_cd\":\"KRX:%s\"}",
-				shortCode
-			);
+			log.info("API 호출 URL: {}, Body: {}", host + endpoint, jsonBody);
 			
 			URL url = new URL(host + endpoint);
 			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -266,34 +278,84 @@ public class StockPriceService {
 			connection.setRequestMethod("POST");
 			connection.setDoOutput(true);
 			connection.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
-			connection.setRequestProperty("authorization", "Bearer " + token);
-			connection.setRequestProperty("api-id", "ka10004");
-			connection.setConnectTimeout(10000);
-			connection.setReadTimeout(10000);
-			
-			// Body 데이터 전송
+		connection.setRequestProperty("authorization", "Bearer " + token);
+		connection.setRequestProperty("cont-yn", "N");
+		connection.setRequestProperty("next-key", "");
+		connection.setRequestProperty("api-id", "ka10100");
+		connection.setConnectTimeout(10000);
+		connection.setReadTimeout(10000);
+		
+		System.out.println("헤더 설정 완료");
+		System.out.println("- Content-Type: application/json;charset=UTF-8");
+		System.out.println("- authorization: Bearer " + token.substring(0, 20) + "...");
+		System.out.println("- api-id: ka10100");			// Body 데이터 전송
 			try (OutputStream os = connection.getOutputStream()) {
 				byte[] input = jsonBody.getBytes("utf-8");
 				os.write(input, 0, input.length);
+				System.out.println("요청 Body 전송 완료");
 			}
 			
 			int responseCode = connection.getResponseCode();
+			System.out.println("응답 코드: " + responseCode);
+			log.info("API 응답 코드: {}", responseCode);
 			
 			if (responseCode == 200) {
 				try (Scanner scanner = new Scanner(connection.getInputStream(), "utf-8")) {
 					String responseBody = scanner.useDelimiter("\\A").next();
 					
+					System.out.println("===== API 응답 =====");
+					System.out.println(responseBody);
+					System.out.println("==================");
+					
+					log.info("현재가 조회 응답: {}", responseBody);
+					
 					ObjectMapper objectMapper = new ObjectMapper();
 					@SuppressWarnings("unchecked")
 					Map<String, Object> responseMap = objectMapper.readValue(responseBody, Map.class);
 					
-					// 키움 API 응답 구조에 따라 현재가 추출 (API 문서 확인 필요)
-					@SuppressWarnings("unchecked")
-					Map<String, Object> output = (Map<String, Object>) responseMap.get("output");
-					if (output != null && output.containsKey("curr_pric")) {
-						String currentPriceStr = (String) output.get("curr_pric");
-						return new BigDecimal(currentPriceStr);
+				System.out.println("응답 파싱 완료");
+				System.out.println("응답 키 목록: " + responseMap.keySet());
+				
+				// 키움 API 응답 구조 확인
+				if (responseMap.containsKey("return_code")) {
+					System.out.println("return_code: " + responseMap.get("return_code"));
+					System.out.println("return_msg: " + responseMap.get("return_msg"));
+				}
+				
+				// ka10100(국내주식 종목정보 조회) - lastPrice에서 현재가 추출
+				if (responseMap.containsKey("lastPrice")) {
+					String lastPriceStr = (String) responseMap.get("lastPrice");
+					System.out.println("현재가(lastPrice) 찾음: " + lastPriceStr);
+					
+					// +/- 부호 제거
+					lastPriceStr = lastPriceStr.replace("+", "").replace("-", "");
+					BigDecimal currentPrice = new BigDecimal(lastPriceStr);
+					
+					System.out.println("변환된 현재가: " + currentPrice);
+					log.info("현재가 조회 완료: 종목코드={}, 현재가={}", stockCode, currentPrice);
+					
+					return currentPrice;
+				}
+				
+				// 만약 output 필드 안에 있을 경우를 대비
+				@SuppressWarnings("unchecked")
+				Map<String, Object> output = (Map<String, Object>) responseMap.get("output");
+				
+				if (output != null) {
+					System.out.println("output 필드 존재");
+					System.out.println("output 키 목록: " + output.keySet());
+					
+					if (output.containsKey("lastPrice")) {
+						String lastPriceStr = (String) output.get("lastPrice");
+						System.out.println("output.lastPrice 찾음: " + lastPriceStr);
+						lastPriceStr = lastPriceStr.replace("+", "").replace("-", "");
+						BigDecimal currentPrice = new BigDecimal(lastPriceStr);
+						System.out.println("변환된 현재가: " + currentPrice);
+						return currentPrice;
 					}
+				} else {
+					System.out.println("output 필드가 null입니다.");
+				}
 					
 					log.warn("현재 주가 데이터를 찾을 수 없습니다. 종목코드: {}, 응답: {}", stockCode, responseBody);
 					return null;
@@ -303,14 +365,26 @@ public class StockPriceService {
 				try (Scanner scanner = new Scanner(connection.getErrorStream(), "utf-8")) {
 					errorBody = scanner.useDelimiter("\\A").next();
 				} catch (Exception e) {
-					// 무시
+					System.out.println("에러 스트림 읽기 실패: " + e.getMessage());
 				}
+				
+				System.out.println("===== API 에러 응답 =====");
+				System.out.println("HTTP 코드: " + responseCode);
+				System.out.println("에러 내용: " + errorBody);
+				System.out.println("========================");
+				
 				log.error("현재가 조회 API 호출 실패: HTTP {}, 종목코드: {}, 에러: {}", responseCode, stockCode, errorBody);
 				return null;
 			}
 			
 		} catch (Exception e) {
-			log.error("현재가 조회 중 오류 발생: 종목코드={}, 오류={}", stockCode, e.getMessage());
+			System.out.println("===== 예외 발생 =====");
+			System.out.println("예외 타입: " + e.getClass().getName());
+			System.out.println("예외 메시지: " + e.getMessage());
+			e.printStackTrace();
+			System.out.println("===================");
+			
+			log.error("현재가 조회 중 오류 발생: 종목코드={}, 오류={}", stockCode, e.getMessage(), e);
 			return null;
 		}
 	}

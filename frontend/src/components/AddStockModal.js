@@ -72,17 +72,16 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 				userId: user,
 				stockCode: selectedStock.code,
 				stockName: selectedStock.name,
-				quantity: parseInt(quantity)
+				quantity: parseInt(quantity),
+				purchaseDate: purchaseDate || null  // 항상 날짜 포함 (없으면 null)
 			};
 
 			// 자동 가격 조회 사용 시 날짜 전송, 아니면 수동 입력 가격 전송
 			if (useAutoPrice) {
 				// 날짜를 YYYY-MM-DD 형식으로 변환하여 전송
-				requestData.purchaseDate = purchaseDate; // input[type="date"]는 이미 YYYY-MM-DD 형식
 				requestData.averagePrice = null;
 			} else {
 				requestData.averagePrice = parseFloat(averagePrice);
-				requestData.purchaseDate = null;
 			}
 
 			console.log('요청 데이터:', requestData);
@@ -284,26 +283,22 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 
 				{/* 평균 매수가 입력 */}
 				<div style={{ marginBottom: '20px' }}>
-					<div style={{ marginBottom: '10px' }}>
-						<label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-							<input
-								type="checkbox"
-								checked={useAutoPrice}
-								onChange={(e) => {
-									setUseAutoPrice(e.target.checked);
-									if (e.target.checked) {
-										setAveragePrice('');
-									} else {
-										setPurchaseDate('');
-									}
-								}}
-								style={{ marginRight: '8px' }}
-							/>
-							<span style={{ fontWeight: 'bold' }}>매수 날짜로 자동 가격 조회</span>
-						</label>
-					</div>
-
-					{useAutoPrice ? (
+			<div style={{ marginBottom: '10px' }}>
+				<label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+					<input
+						type="checkbox"
+						checked={useAutoPrice}
+						onChange={(e) => {
+							setUseAutoPrice(e.target.checked);
+							if (e.target.checked) {
+								setAveragePrice('');
+							}
+						}}
+						style={{ marginRight: '8px' }}
+					/>
+					<span style={{ fontWeight: 'bold' }}>매수 날짜로 자동 가격 조회</span>
+				</label>
+			</div>					{useAutoPrice ? (
 						<div>
 							<label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
 								매수 날짜
@@ -335,6 +330,9 @@ function AddStockModal({ isOpen, onClose, onSuccess }) {
 								step="0.01"
 								style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
 							/>
+							<small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
+								* 매수 날짜는 오늘 날짜로 자동 저장됩니다
+							</small>
 						</div>
 					)}
 				</div>

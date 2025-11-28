@@ -1,12 +1,17 @@
 package com.byul.wheresmymoney.backend.Stock.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.byul.wheresmymoney.backend.Stock.Dto.StockDTO.AddStockRequest;
+import com.byul.wheresmymoney.backend.Stock.Dto.StockDetailDTO;
 import com.byul.wheresmymoney.backend.Stock.Dto.UserStockDTO;
 import com.byul.wheresmymoney.backend.Stock.Entity.UserStockEntity;
 import com.byul.wheresmymoney.backend.Stock.Repository.UserStockRepository;
@@ -87,40 +92,27 @@ public class UserStockService {
 				return false;
 			}
 			
-			// 기존에 동일한 종목이 있는지 확인 (단축코드로 조회)
-			UserStockEntity existing = userStockRepository.findByUserIdAndStockCode(userId, shortCode);
-			
-			if (existing != null) {
-				// 기존 종목이 있으면 수량과 평균단가 업데이트
-				log.info("기존 종목 발견: stockIdx={}, 기존 수량={}, 기존 평균가={}", 
-					existing.getUserstockIdx(), existing.getUserstockQuantity(), existing.getUserstockAvgprice());
-				
-				int totalQuantity = existing.getUserstockQuantity() + request.getQuantity();
-				double totalValue = existing.getUserstockAvgprice().doubleValue() * existing.getUserstockQuantity() 
-						+ averagePrice * request.getQuantity();
-				double newAvgPrice = totalValue / totalQuantity;
-				
-				existing.setUserstockQuantity(totalQuantity);
-				existing.setUserstockAvgprice(BigDecimal.valueOf(newAvgPrice));
-				userStockRepository.save(existing);
-				
-				log.info("기존 종목 업데이트 완료: 총 수량={}, 새 평균가={}", totalQuantity, newAvgPrice);
-			} else {
-				// 신규 종목 추가
-				log.info("신규 종목 추가 시작");
-				
-				UserStockEntity newStock = new UserStockEntity();
-				newStock.setUserstockFidx(userId);
-				newStock.setUserstockStk(shortCode);  // 6자리 단축코드 저장
-				newStock.setUserstockName(request.getStockName());
-				newStock.setUserstockQuantity(request.getQuantity());
-				newStock.setUserstockAvgprice(BigDecimal.valueOf(averagePrice));
-				userStockRepository.save(newStock);
-				
-				log.info("신규 종목 추가 완료: stockCode={}, name={}, quantity={}, avgPrice={}", 
-					shortCode, request.getStockName(), request.getQuantity(), averagePrice);
+			// 매수일 결정
+			LocalDate purchaseDate = request.getPurchaseDate();
+			if (purchaseDate == null) {
+				purchaseDate = LocalDate.now();  // 날짜가 없으면 오늘 날짜
 			}
 			
+			// 신규 종목 추가 (같은 종목이라도 매수 날짜가 다르면 별도로 저장)
+			log.info("신규 매수 내역 추가 시작: 종목={}, 날짜={}", shortCode, purchaseDate);
+			
+			UserStockEntity newStock = new UserStockEntity();
+			newStock.setUserstockFidx(userId);
+			newStock.setUserstockStk(shortCode);  // 6자리 단축코드 저장
+			newStock.setUserstockName(request.getStockName());
+			newStock.setUserstockQuantity(request.getQuantity());
+			newStock.setUserstockAvgprice(BigDecimal.valueOf(averagePrice));
+			newStock.setUserstockPurchasedate(purchaseDate);
+			
+			userStockRepository.save(newStock);
+			
+			log.info("신규 종목 추가 완료: stockCode={}, name={}, quantity={}, avgPrice={}, purchaseDate={}", 
+				shortCode, request.getStockName(), request.getQuantity(), averagePrice, purchaseDate);
 			return true;
 		} catch (Exception e) {
 			log.error("주식 추가 중 오류 발생: userId={}, stockCode={}, error={}", userId, request.getStockCode(), e.getMessage(), e);
@@ -166,6 +158,165 @@ public class UserStockService {
 			return true;
 		} catch (Exception e) {
 			return false;
+		}
+	}
+	
+	/**
+	 * 주식 상세 정보 조회 (수익률 포함)
+	 * @param userId 사용자 ID
+	 * @param stockCode 종목코드 (6자리)
+	 * @return 주식 상세 정보 DTO
+	 */
+	public StockDetailDTO getStockDetail(String userId, String stockCode) {
+		try {
+			log.info("주식 상세 정보 조회: userId={}, stockCode={}", userId, stockCode);
+			
+			// 6자리 단축코드로 변환
+			String shortCode = extractShortCode(stockCode);
+			
+			// 사용자의 해당 종목 조회
+			UserStockEntity stock = userStockRepository.findByUserstockFidxAndUserstockStk(userId, shortCode);
+			
+			if (stock == null) {
+				log.warn("보유 주식을 찾을 수 없음: userId={}, stockCode={}", userId, shortCode);
+				return null;
+			}
+			
+			// 현재가 조회
+			BigDecimal currentPrice = stockPriceService.getCurrentStockPrice(shortCode);
+			
+			if (currentPrice == null) {
+				log.warn("현재가 조회 실패: stockCode={}", shortCode);
+				return null;
+			}
+			
+			log.info("현재가 조회 성공: stockCode={}, currentPrice={}", shortCode, currentPrice);
+			
+			// 수익률 계산
+			BigDecimal averagePrice = stock.getUserstockAvgprice();
+			Integer quantity = stock.getUserstockQuantity();
+			
+			// 평가금액 = 현재가 × 보유수량
+			BigDecimal evaluationAmount = currentPrice.multiply(BigDecimal.valueOf(quantity));
+			
+			// 평가손익 = (현재가 - 평균매수가) × 보유수량
+			BigDecimal profitLoss = currentPrice.subtract(averagePrice).multiply(BigDecimal.valueOf(quantity));
+			
+			// 수익률 = ((현재가 - 평균매수가) / 평균매수가) × 100
+			Double profitRate = 0.0;
+			if (averagePrice.compareTo(BigDecimal.ZERO) > 0) {
+				profitRate = currentPrice.subtract(averagePrice)
+					.divide(averagePrice, 4, RoundingMode.HALF_UP)
+					.multiply(BigDecimal.valueOf(100))
+					.doubleValue();
+			}
+			
+		// 매수일 포맷팅
+		String purchaseDate = null;
+		if (stock.getUserstockPurchasedate() != null) {
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+			purchaseDate = stock.getUserstockPurchasedate().format(formatter);
+		} else {
+			// purchaseDate가 없으면 createdat 사용 (하위 호환성)
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+			purchaseDate = stock.getUserstockCreatedat().format(formatter);
+		}			StockDetailDTO detail = new StockDetailDTO();
+			detail.setStockCode(shortCode);
+			detail.setStockName(stock.getUserstockName());
+			detail.setQuantity(quantity);
+			detail.setPurchaseDate(purchaseDate);
+			detail.setAveragePrice(averagePrice);
+			detail.setCurrentPrice(currentPrice);
+			detail.setEvaluationAmount(evaluationAmount);
+			detail.setProfitLoss(profitLoss);
+			detail.setProfitRate(profitRate);
+			
+			log.info("주식 상세 정보 조회 완료: 수익률={}%", profitRate);
+			
+			return detail;
+		} catch (Exception e) {
+			log.error("주식 상세 정보 조회 중 오류: userId={}, stockCode={}, 오류={}", userId, stockCode, e.getMessage(), e);
+			return null;
+		}
+	}
+	
+	public List<StockDetailDTO> getStockDetailList(String userId, String stockCode) {
+		try {
+			// 단축코드 변환
+			String shortCode = stockCode.length() > 6 ? stockCode.substring(1) : stockCode;
+			
+			// 해당 종목의 모든 매수내역 조회 (날짜별로 분리됨)
+			List<UserStockEntity> stocks = userStockRepository.findAllByUserIdAndStockCode(userId, shortCode);
+			
+			if (stocks == null || stocks.isEmpty()) {
+				log.warn("보유 주식을 찾을 수 없음: userId={}, stockCode={}", userId, shortCode);
+				return null;
+			}
+			
+			// 현재가 조회 (한 번만 조회)
+			BigDecimal currentPrice = stockPriceService.getCurrentStockPrice(shortCode);
+			
+			if (currentPrice == null) {
+				log.warn("현재가 조회 실패: stockCode={}", shortCode);
+				return null;
+			}
+			
+			log.info("현재가 조회 성공: stockCode={}, currentPrice={}", shortCode, currentPrice);
+			
+			// 각 매수내역에 대해 StockDetailDTO 생성
+			List<StockDetailDTO> detailList = new ArrayList<>();
+			
+			for (UserStockEntity stock : stocks) {
+				// 수익률 계산
+				BigDecimal averagePrice = stock.getUserstockAvgprice();
+				Integer quantity = stock.getUserstockQuantity();
+				
+				// 평가금액 = 현재가 × 보유수량
+				BigDecimal evaluationAmount = currentPrice.multiply(BigDecimal.valueOf(quantity));
+				
+				// 평가손익 = (현재가 - 평균매수가) × 보유수량
+				BigDecimal profitLoss = currentPrice.subtract(averagePrice).multiply(BigDecimal.valueOf(quantity));
+				
+				// 수익률 = ((현재가 - 평균매수가) / 평균매수가) × 100
+				Double profitRate = 0.0;
+				if (averagePrice.compareTo(BigDecimal.ZERO) > 0) {
+					profitRate = currentPrice.subtract(averagePrice)
+						.divide(averagePrice, 4, RoundingMode.HALF_UP)
+						.multiply(BigDecimal.valueOf(100))
+						.doubleValue();
+				}
+				
+				// 매수일 포맷팅
+				String purchaseDate = null;
+				if (stock.getUserstockPurchasedate() != null) {
+					DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+					purchaseDate = stock.getUserstockPurchasedate().format(formatter);
+				} else {
+					// purchaseDate가 없으면 createdat 사용 (하위 호환성)
+					DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+					purchaseDate = stock.getUserstockCreatedat().format(formatter);
+				}
+				
+				StockDetailDTO detail = new StockDetailDTO();
+				detail.setStockCode(shortCode);
+				detail.setStockName(stock.getUserstockName());
+				detail.setQuantity(quantity);
+				detail.setPurchaseDate(purchaseDate);
+				detail.setAveragePrice(averagePrice);
+				detail.setCurrentPrice(currentPrice);
+				detail.setEvaluationAmount(evaluationAmount);
+				detail.setProfitLoss(profitLoss);
+				detail.setProfitRate(profitRate);
+				
+				detailList.add(detail);
+			}
+			
+			log.info("주식 상세 정보 리스트 조회 완료: 총 {}건", detailList.size());
+			
+			return detailList;
+		} catch (Exception e) {
+			log.error("주식 상세 정보 리스트 조회 중 오류: userId={}, stockCode={}, 오류={}", userId, stockCode, e.getMessage(), e);
+			return null;
 		}
 	}
 }

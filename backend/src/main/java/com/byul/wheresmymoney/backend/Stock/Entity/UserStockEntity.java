@@ -1,6 +1,7 @@
 package com.byul.wheresmymoney.backend.Stock.Entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -41,6 +42,9 @@ public class UserStockEntity {
 	
 	@Column(name = "userstock_avgprice", nullable = false, columnDefinition = "DECIMAL(15, 2) DEFAULT 0.00")
 	private BigDecimal userstockAvgprice = BigDecimal.ZERO;
+	
+	@Column(name = "userstock_purchasedate", nullable = false)
+	private LocalDate userstockPurchasedate;
 	
 	@Column(name = "userstock_createdat", nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
 	private LocalDateTime userstockCreatedat = LocalDateTime.now();

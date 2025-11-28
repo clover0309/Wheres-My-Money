@@ -17,4 +17,10 @@ public interface UserStockRepository extends JpaRepository<UserStockEntity, Inte
 	
 	@Query("SELECT u FROM UserStockEntity u WHERE u.userstockFidx = :userId AND u.userstockStk = :stockCode")
 	UserStockEntity findByUserIdAndStockCode(@Param("userId") String userId, @Param("stockCode") String stockCode);
+	
+	@Query("SELECT u FROM UserStockEntity u WHERE u.userstockFidx = :userId AND u.userstockStk = :stockCode")
+	List<UserStockEntity> findAllByUserIdAndStockCode(@Param("userId") String userId, @Param("stockCode") String stockCode);
+	
+	// 메서드 이름 규칙에 따른 자동 쿼리 생성
+	UserStockEntity findByUserstockFidxAndUserstockStk(String userstockFidx, String userstockStk);
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api/authAPI";
 import AddStockModal from "../components/AddStockModal";
+import StockDetailModal from "../components/StockDetailModal";
 import { useAuth } from "../contexts/AuthContext";
 
 function UserStockPage() {
@@ -10,6 +11,8 @@ function UserStockPage() {
   const { logout, user } = useAuth();
   const [apiStatus, setApiStatus] = useState('loading'); // 'loading', 'success', 'error'
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedStock, setSelectedStock] = useState(null);
   const [stocks, setStocks] = useState([]);
   const [isLoadingStocks, setIsLoadingStocks] = useState(false);
 
@@ -46,7 +49,35 @@ function UserStockPage() {
         setIsLoadingStocks(true);
         try {
             const response = await axios.get(`http://localhost:8080/api/stock/list?userId=${user}`);
-            setStocks(response.data);
+            
+            // 같은 종목코드끼리 그룹화하여 합산
+            const groupedStocks = {};
+            
+            response.data.forEach(function(stock) {
+                const stockCode = stock.userstockStk;
+                
+                if (groupedStocks[stockCode]) {
+                    // 이미 존재하는 종목이면 수량과 평균가 합산
+                    const existing = groupedStocks[stockCode];
+                    const existingValue = Number(existing.userstockAvgprice) * existing.userstockQuantity;
+                    const newValue = Number(stock.userstockAvgprice) * stock.userstockQuantity;
+                    const totalQuantity = existing.userstockQuantity + stock.userstockQuantity;
+                    const newAvgPrice = (existingValue + newValue) / totalQuantity;
+                    
+                    groupedStocks[stockCode] = {
+                        ...existing,
+                        userstockQuantity: totalQuantity,
+                        userstockAvgprice: newAvgPrice
+                    };
+                } else {
+                    // 새로운 종목이면 추가
+                    groupedStocks[stockCode] = { ...stock };
+                }
+            });
+            
+            // 객체를 배열로 변환
+            const mergedStocks = Object.values(groupedStocks);
+            setStocks(mergedStocks);
         } catch (error) {
             console.error('주식 목록 조회 오류:', error);
         } finally {
@@ -111,6 +142,11 @@ function UserStockPage() {
             console.error('주식 삭제 오류:', error);
             alert('주식 삭제 중 오류가 발생했습니다.');
         }
+    };
+
+    const handleShowDetail = function(stock) {
+        setSelectedStock(stock);
+        setIsDetailModalOpen(true);
     };
 
     return (
@@ -180,6 +216,23 @@ function UserStockPage() {
                                     </td>
                                     <td style={{ padding: '12px', border: '1px solid #dee2e6', textAlign: 'center' }}>
                                         <button
+                                            onClick={() => handleShowDetail(stock)}
+                                            style={{
+                                                padding: '6px 12px',
+                                                backgroundColor: '#007bff',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '14px',
+                                                marginRight: '8px'
+                                            }}
+                                            onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+                                            onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+                                        >
+                                            상세보기
+                                        </button>
+                                        <button
                                             onClick={() => handleDeleteStock(stock.userstockIdx, stock.userstockName)}
                                             style={{
                                                 padding: '6px 12px',
@@ -207,6 +260,12 @@ function UserStockPage() {
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={handleStockAdded}
+            />
+
+            <StockDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                stock={selectedStock}
             />
 
             <div style={{ 
