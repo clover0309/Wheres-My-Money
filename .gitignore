@@ -6,3 +6,6 @@
 # Node.js 관련 파일 제거.
 node_modules/
 .DS_Store
+
+# 환경설정 및 API 키 파일 제거.
+backend/src/main/resources/application-secret.yml
